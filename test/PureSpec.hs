@@ -1,34 +1,29 @@
-module Main (main) where
+module PureSpec (spec) where
 
-import Test.QuickCheck
+import Test.Hspec
 import Numeric.Search.Bounded as B
 import Numeric.Search.Integer as I
 import Numeric.Search.Range
 
-main :: IO ()
-main = flip mapM_ tests $ \ (Test n t) -> do
-        putStrLn $ "Testing: " ++ n
-        t
+spec :: Spec
+spec = describe "BinarySearch" $ do
+     return ()
 
-data Test = Test String (IO ())
 
-mkTest :: Testable a => String -> a -> Test
-mkTest n t = Test n (test t)
-
-tests :: [Test]
-tests = [
-        mkTest "searchIntegers" prop_searchIntegers,
-        mkTest "searchIntegersFrom" prop_searchIntegersFrom,
-        mkTest "searchIntegersTo" prop_searchIntegersTo,
-        mkTest "searchIntegersTo (const False)" prop_searchIntegersToF,
-        mkTest "searchFromTo" prop_searchFromTo,
-        mkTest "searchFromTo (const False)" prop_searchFromToF,
-        mkTest "searchBounded" prop_searchBounded,
-        mkTest "searchBounded (const False)" prop_searchBoundedF,
-        mkTest "searchBoundedFrom" prop_searchBoundedFrom,
-        mkTest "searchBoundedFrom (const False)" prop_searchBoundedFromF,
-        mkTest "searchBoundedTo" prop_searchBoundedTo,
-        mkTest "searchBoundedTo (const False)" prop_searchBoundedToF]
+-- tests :: [Test]
+-- tests = [
+--         mkTest "searchIntegers" prop_searchIntegers,
+--         mkTest "searchIntegersFrom" prop_searchIntegersFrom,
+--         mkTest "searchIntegersTo" prop_searchIntegersTo,
+--         mkTest "searchIntegersTo (const False)" prop_searchIntegersToF,
+--         mkTest "searchFromTo" prop_searchFromTo,
+--         mkTest "searchFromTo (const False)" prop_searchFromToF,
+--         mkTest "searchBounded" prop_searchBounded,
+--         mkTest "searchBounded (const False)" prop_searchBoundedF,
+--         mkTest "searchBoundedFrom" prop_searchBoundedFrom,
+--         mkTest "searchBoundedFrom (const False)" prop_searchBoundedFromF,
+--         mkTest "searchBoundedTo" prop_searchBoundedTo,
+--         mkTest "searchBoundedTo (const False)" prop_searchBoundedToF]
 
 -- Every upward closed predicate is equivalent to either (const False),
 -- or (>= n) for some n.
@@ -38,7 +33,6 @@ prop_searchIntegers n =
         I.search (>= n)  ==  n
 
 -- I.search (const False) does not terminate
-
 --	I.searchFrom p l  ==  I.search (\ i -> i >= l && p i)
 
 prop_searchIntegersFrom :: Integer -> Integer -> Bool
