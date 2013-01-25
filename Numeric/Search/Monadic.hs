@@ -16,6 +16,7 @@
 
 module Numeric.Search.Monadic where
 
+import           Control.Applicative((<$>))
 import           Data.Foldable (foldrM)
 import           Data.Sequence as Seq
 import           Prelude hiding (init, pred)
@@ -34,6 +35,7 @@ type BinarySearch m a b =
 data BookEnd a b
       = LEnd !a !b
       | REnd !a !b
+      deriving (Eq, Show)
 
 -- | 'Predicate' @m a b@ calculates the predicate in the context @m@.
 type Predicate m a b = a -> m b
@@ -46,16 +48,36 @@ type Initializer m a b = Predicate m a b -> m (Seq (BookEnd a b))
 -- in a 'Just'.
 type Cutter m a = a -> a -> m (Maybe a)
 
-searchWith :: forall m a b. (Monad m) => BinarySearch m a b
+searchWith :: forall m a b. (Functor m, Monad m, Eq b) => BinarySearch m a b
 searchWith init cut pred = do
   seq0 <- init pred
   go seq0
   where
     go :: Seq (BookEnd a b) -> m (Seq (BookEnd a b))
-    go seq = foldrM accum Seq.empty seq
+    go seq0 = case viewl seq0 of
+      EmptyL -> return seq0
+      (x1 :< seq1) -> do
+        let skip = (x1 <|) <$> go seq1
+        case viewl seq1 of
+          EmptyL -> skip
+          (x2 :< seq2) -> case (x1,x2) of
+            (REnd a1 b1, LEnd a2 b2) -> do
+              y1 <- drillDown a1 b1 a2 b2
+              y2 <- go seq2
+              return $ y1 >< y2
+            _ -> skip
 
-    accum :: BookEnd a b -> Seq (BookEnd a b) -> m (Seq (BookEnd a b))
-    accum x seq = case Seq.veiwl seq of
-      EmptyL x
-      | Seq.null seq = return $ Seq.singleton r
-      | otherwise    = return $ r <| seq
+    drillDown :: a -> b -> a -> b -> m (Seq (BookEnd a b))
+    drillDown a1 b1 a2 b2= do
+      mc <- cut a1 a2
+      case mc of
+        Nothing -> return $ Seq.fromList [REnd a1 b1, LEnd a2 b2]
+        Just a3 -> do
+          b3 <- pred a3
+          case () of
+            _ | b3==b1 -> drillDown a3 b3 a2 b2
+            _ | b3==b2 -> drillDown a1 b1 a3 b3
+            _ -> do
+              y1 <-  drillDown a1 b1 a3 b3
+              y2 <-  drillDown a3 b3 a2 b2
+              return $ y1 >< y2
