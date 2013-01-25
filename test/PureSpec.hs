@@ -1,89 +1,41 @@
 module PureSpec (spec) where
 
 import Test.Hspec
+import Test.Hspec.QuickCheck (prop)
 import Numeric.Search.Bounded as B
 import Numeric.Search.Integer as I
 import Numeric.Search.Range
 
 spec :: Spec
-spec = describe "BinarySearch" $ do
-     return ()
+spec = do
+  describe "Integer search" $ do
+    prop "finds n when search for (>= n)" $          
+      \n -> I.search (>= n)  ==  (n :: Integer)
+    prop "finds (max l n) when search for (>= n) in range (>= l)" $          
+      \n l -> I.searchFrom (>= n) l  ==  max l n
+    prop "finds n when search for (>=n) in range (<=h), iff n <= h." $  
+      \n h -> I.searchTo (>= n) h  ==  if n <= h then Just (n :: Integer) else Nothing
 
+  describe "Range search" $ do
+    prop "returns Nothing for always failing predicate." $
+      \l h -> searchFromTo (const False) l (h :: Int)  ==  Nothing
+    prop "finds n given that n is within the range." $
+      \n l h -> searchFromTo (>= n) l h  == 
+         let k = max n l in  if k <= h then Just (k::Int) else Nothing
 
--- tests :: [Test]
--- tests = [
---         mkTest "searchIntegers" prop_searchIntegers,
---         mkTest "searchIntegersFrom" prop_searchIntegersFrom,
---         mkTest "searchIntegersTo" prop_searchIntegersTo,
---         mkTest "searchIntegersTo (const False)" prop_searchIntegersToF,
---         mkTest "searchFromTo" prop_searchFromTo,
---         mkTest "searchFromTo (const False)" prop_searchFromToF,
---         mkTest "searchBounded" prop_searchBounded,
---         mkTest "searchBounded (const False)" prop_searchBoundedF,
---         mkTest "searchBoundedFrom" prop_searchBoundedFrom,
---         mkTest "searchBoundedFrom (const False)" prop_searchBoundedFromF,
---         mkTest "searchBoundedTo" prop_searchBoundedTo,
---         mkTest "searchBoundedTo (const False)" prop_searchBoundedToF]
+  describe "Bounded search" $ do
+    prop "always finds n when searched for (>=n), by default." $
+      \n -> B.search (>= n)  ==  Just (n :: Int)
+    it "fails when given always failing predicate." $  
+      B.search (const False :: Int -> Bool)  `shouldBe` Nothing
+    it "finds the lower bound when given an always-holding predicate." $
+      B.search (const True :: Int -> Bool)  `shouldBe` Just minBound
+    prop "finds (max l n) for lower-bounded search." $ 
+      \l n -> B.searchFrom (>= n) l  ==  Just (max l (n::Int))
+    prop "finds Nothing for always-failing predicate with a bound." $
+      \l -> B.searchFrom (const False) (l::Int)  ==  Nothing
+    prop "finds n for upper-bounded search, iff n is within the bound." $ 
+      \n h ->  B.searchTo (>= n) h  ==  if n <= h then Just (n::Int) else Nothing
+    prop "finds Nothing for always-failing predicate with a bound." $ 
+      \h -> B.searchTo (const False) (h::Int)  ==  Nothing
 
--- Every upward closed predicate is equivalent to either (const False),
--- or (>= n) for some n.
-
-prop_searchIntegers :: Integer -> Bool
-prop_searchIntegers n =
-        I.search (>= n)  ==  n
-
--- I.search (const False) does not terminate
---	I.searchFrom p l  ==  I.search (\ i -> i >= l && p i)
-
-prop_searchIntegersFrom :: Integer -> Integer -> Bool
-prop_searchIntegersFrom n l =
-        I.searchFrom (>= n) l  ==  max l n
-
--- I.searchFrom (const False) l does not terminate
-
---	I.searchTo p h  ==  if n > h then Nothing else Just n
---		let k = I.search (\ i -> i > h || p i)
---		in if k <= h then Just k else Nothing
-
-prop_searchIntegersTo :: Integer -> Integer -> Bool
-prop_searchIntegersTo n h =
-        I.searchTo (>= n) h  ==  if n <= h then Just n else Nothing
-
-prop_searchIntegersToF :: Integer -> Bool
-prop_searchIntegersToF h =
-        I.searchTo (const False) h  ==  Nothing
-
---	searchFromTo p l h  ==  I.search (\ i -> i < l || i <= h && p i)
-
-prop_searchFromTo :: Int -> Int -> Int -> Bool
-prop_searchFromTo n l h =
-        searchFromTo (>= n) l h  ==  if k <= h then Just k else Nothing
-  where k = max n l
-
-prop_searchFromToF :: Int -> Int -> Bool
-prop_searchFromToF l h =
-        searchFromTo (const False) l h  ==  Nothing
-
-prop_searchBounded :: Int -> Bool
-prop_searchBounded n =
-        B.search (>= n)  ==  Just n
-
-prop_searchBoundedF :: Bool
-prop_searchBoundedF =
-        B.search (const False :: Int -> Bool)  ==  Nothing
-
-prop_searchBoundedFrom :: Int -> Int -> Bool
-prop_searchBoundedFrom n l =
-        B.searchFrom (>= n) l  ==  Just (max l n)
-
-prop_searchBoundedFromF :: Int -> Bool
-prop_searchBoundedFromF l =
-        B.searchFrom (const False) l  ==  Nothing
-
-prop_searchBoundedTo :: Int -> Int -> Bool
-prop_searchBoundedTo n h =
-        B.searchTo (>= n) h  ==  if n <= h then Just n else Nothing
-
-prop_searchBoundedToF :: Int -> Bool
-prop_searchBoundedToF h =
-        B.searchTo (const False) h  ==  Nothing
