@@ -32,9 +32,18 @@ type BinarySearch m a b =
 -- represents the ongoing state of the search results.
 -- Two successive 'BookEnd' @LEnd x1 b1@, @REnd x2 b1@ represents a
 -- claim that @pred x == b1@ for all @x@ such that @x1 <= x <= x2@ .
+-- Like this:
+--
+-- > is (x^2 > 20000) ?
+-- >
+-- > LEnd    REnd  LEnd     REnd
+-- > 0        100  200       300
+-- > |_ False _|    |_ True  _|
+
+
 data BookEnd a b
-      = LEnd !a !b
-      | REnd !a !b
+      = REnd !a !b
+      | LEnd !a !b
       deriving (Eq, Show)
 
 -- | 'Predicate' @m a b@ calculates the predicate in the context @m@.
@@ -61,10 +70,12 @@ searchWith init cut pred = do
         case viewl seq1 of
           EmptyL -> skip
           (x2 :< seq2) -> case (x1,x2) of
-            (REnd a1 b1, LEnd a2 b2) -> do
-              y1 <- drillDown a1 b1 a2 b2
-              y2 <- go seq2
-              return $ y1 >< y2
+            (REnd a1 b1, LEnd a2 b2) -> case b1==b2 of
+              True  -> go seq2
+              False ->  do
+                y1 <- drillDown a1 b1 a2 b2
+                y2 <- go seq2
+                return $ y1 >< y2
             _ -> skip
 
     drillDown :: a -> b -> a -> b -> m (Seq (BookEnd a b))
