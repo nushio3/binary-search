@@ -5,27 +5,26 @@
 --
 -- 'BinarySearch' assumes two things;
 --
--- 1. @b@, the codomain of 'Predicate' belongs to type class 'Eq'.
+-- 1. @b@, the codomain of 'PredicateM' belongs to type class 'Eq'.
 --
 -- 2. Each value of @b@ form a convex set in the codomain space of the
--- Predicate. That is, if for certain pair @(left, right) :: (a, a)@
+-- PredicateM. That is, if for certain pair @(left, right) :: (a, a)@
 -- satisfies @pred left == val && pred right == val@, then also
 -- @pred x == val@ for all @x@ such that @left <= x <= right@ .
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Numeric.Search.Monadic where
+module Numeric.Search.Internal.Monadic where
 
 import           Control.Applicative((<$>))
-import           Data.Foldable (foldrM)
 import           Data.Sequence as Seq
 import           Prelude hiding (init, pred)
 
 -- | The generalized type for binary search functions.
-type BinarySearch m a b =
-  Initializer m a b ->
-  Cutter m a ->
-  Predicate m a b ->
+type BinarySearchM m a b =
+  InitializerM m a b ->
+  CutterM m a ->
+  PredicateM m a b ->
   m (Seq (BookEnd a b))
 
 -- | 'BookEnd' comes in order [LEnd, REnd, LEnd, REnd ...], and
@@ -46,19 +45,20 @@ data BookEnd a b
       | LEnd !a !b
       deriving (Eq, Show)
 
--- | 'Predicate' @m a b@ calculates the predicate in the context @m@.
-type Predicate m a b = a -> m b
+-- | 'PredicateM' @m a b@ calculates the predicate in the context @m@.
+type PredicateM m a b = a -> m b
 
--- | 'Initializer' generates the initial set of ranges.
-type Initializer m a b = Predicate m a b -> m (Seq (BookEnd a b))
+-- | 'InitializerM' generates the initial set of ranges.
+type InitializerM m a b = PredicateM m a b -> m (Seq (BookEnd a b))
 
--- | 'Cutter' @x1 x2@ decides if we should further investigate the
+-- | 'CutterM' @x1 x2@ decides if we should further investigate the
 -- gap between @x1@ and @x2@. If so, it gives a new value @x3@ wrapped
 -- in a 'Just'.
-type Cutter m a = a -> a -> m (Maybe a)
+type CutterM m a = a -> a -> m (Maybe a)
 
-searchWith :: forall m a b. (Functor m, Monad m, Eq b) => BinarySearch m a b
-searchWith init cut pred = do
+-- | The most generalized version of search.
+searchWithM :: forall m a b. (Functor m, Monad m, Eq b) => BinarySearchM m a b
+searchWithM init cut pred = do
   seq0 <- init pred
   go seq0
   where
@@ -71,15 +71,16 @@ searchWith init cut pred = do
           EmptyL -> skip
           (x2 :< seq2) -> case (x1,x2) of
             (REnd a1 b1, LEnd a2 b2) -> case b1==b2 of
-              True  -> go seq2
+              True  -> go seq2 -- merge the two regions
               False ->  do
                 y1 <- drillDown a1 b1 a2 b2
                 y2 <- go seq2
                 return $ y1 >< y2
             _ -> skip
 
+    -- precondition : b1 /= b2
     drillDown :: a -> b -> a -> b -> m (Seq (BookEnd a b))
-    drillDown a1 b1 a2 b2= do
+    drillDown a1 b1 a2 b2 = do
       mc <- cut a1 a2
       case mc of
         Nothing -> return $ Seq.fromList [REnd a1 b1, LEnd a2 b2]

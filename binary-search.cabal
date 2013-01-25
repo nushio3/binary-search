@@ -18,7 +18,7 @@ cabal-version:      >=1.8
 library
   exposed-modules:  Numeric.Search.Bounded
                     Numeric.Search.Integer
-                    Numeric.Search.Monadic
+                    Numeric.Search.Internal.Monadic
                     Numeric.Search.Range
 
   Ghc-Options:      -Wall
