@@ -13,9 +13,14 @@ Description:    These modules address the problem of finding the boundary
                 of exponential and binary searches.  Variants are provided
                 for searching within bounded and unbounded intervals of
                 both 'Integer' and bounded integral types.
-Exposed-Modules:
-                Numeric.Search.Bounded
-                Numeric.Search.Integer
-                Numeric.Search.Range
-Extra-Source-Files:
-                search-test.hs
+
+library
+  exposed-modules:  Numeric.Search.Bounded
+                    Numeric.Search.Integer
+                    Numeric.Search.Monadic
+                    Numeric.Search.Range
+
+  Ghc-Options:      -Wall
+
+  build-depends:    base >=4.5 && < 5
+                  , containers >= 0.4
