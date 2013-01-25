@@ -25,21 +25,21 @@ type BinarySearch m a b =
   Initializer m a b ->
   Cutter m a ->
   Predicate m a b ->
-  m (Seq (Range a b))
+  m (Seq (BookEnd a b))
 
 -- | 'BookEnd' comes in order [LEnd, REnd, LEnd, REnd ...], and
 -- represents the ongoing state of the search results.
 -- Two successive 'BookEnd' @LEnd x1 b1@, @REnd x2 b1@ represents a
 -- claim that @pred x == b1@ for all @x@ such that @x1 <= x <= x2@ .
-type BookEnd a b
-   = LEnd a b
-   | REnd a b
+data BookEnd a b
+      = LEnd !a !b
+      | REnd !a !b
 
 -- | 'Predicate' @m a b@ calculates the predicate in the context @m@.
 type Predicate m a b = a -> m b
 
 -- | 'Initializer' generates the initial set of ranges.
-type Initializer m a b = Predicate m a b -> m (Seq (Range a b))
+type Initializer m a b = Predicate m a b -> m (Seq (BookEnd a b))
 
 -- | 'Cutter' @x1 x2@ decides if we should further investigate the
 -- gap between @x1@ and @x2@. If so, it gives a new value @x3@ wrapped
@@ -51,10 +51,11 @@ searchWith init cut pred = do
   seq0 <- init pred
   go seq0
   where
-    go :: Seq (Range a b) -> m (Seq (Range a b))
+    go :: Seq (BookEnd a b) -> m (Seq (BookEnd a b))
     go seq = foldrM accum Seq.empty seq
 
-    accum :: Range a b -> Seq (Range a b) -> m (Seq (Range a b))
-    accum r seq
+    accum :: BookEnd a b -> Seq (BookEnd a b) -> m (Seq (BookEnd a b))
+    accum x seq = case Seq.veiwl seq of
+      EmptyL x
       | Seq.null seq = return $ Seq.singleton r
       | otherwise    = return $ r <| seq

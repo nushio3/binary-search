@@ -13,6 +13,7 @@ Description:    These modules address the problem of finding the boundary
                 of exponential and binary searches.  Variants are provided
                 for searching within bounded and unbounded intervals of
                 both 'Integer' and bounded integral types.
+cabal-version:      >=1.8
 
 library
   exposed-modules:  Numeric.Search.Bounded
