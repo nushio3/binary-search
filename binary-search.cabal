@@ -16,10 +16,12 @@ Description:    These modules address the problem of finding the boundary
 cabal-version:      >=1.8
 
 library
-  exposed-modules:  Numeric.Search.Bounded
+  exposed-modules:  Numeric.Search
+                    Numeric.Search.Bounded
                     Numeric.Search.Integer
-                    Numeric.Search.Internal.Monadic
                     Numeric.Search.Range
+                    Numeric.Search.Combinator.Monadic
+                    Numeric.Search.Combinator.Pure
 
   Ghc-Options:      -Wall
 
