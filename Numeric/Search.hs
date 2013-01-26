@@ -18,7 +18,7 @@ module Numeric.Search (
 -- $pureCombinators
 
 -- ** Types
-
+Range,
 -- ** Searchers
 
 -- ** Combinators

@@ -86,4 +86,10 @@ searchWithM init cut pred = do
               return $ y1 >< y2
 
     finalize :: Seq (BookEnd a b) -> Seq (Range a b)
-    finalize = undefined
+    finalize seqE = case viewl seqE of
+      EmptyL -> Seq.empty
+      (x1 :< seqE1) -> case viewl seqE1 of
+        EmptyL -> finalize seqE1
+        (x2 :< seqE2) -> case (x1,x2) of
+          (LEnd x1 y1, REnd x2 y2) | y1==y2 -> ((x1,x2), y1) <| finalize seqE2
+          _                                 -> finalize seqE1
