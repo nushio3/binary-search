@@ -42,10 +42,28 @@ type PredicateM m a b = a -> m b
 -- | 'InitializerM' generates the initial set of ranges.
 type InitializerM m a b = PredicateM m a b -> m (Seq (BookEnd a b))
 
--- | 'CutterM' @x1 x2@ decides if we should further investigate the
+-- | 'CutterM' @p x1 x2@ decides if we should further investigate the
 -- gap between @x1@ and @x2@. If so, it gives a new value @x3@ wrapped
--- in a 'Just'.
+-- in a 'Just'. 'CutterM' may optionally use the predicate.
 type CutterM m a b = PredicateM m a b -> a -> a -> m (Maybe a)
+
+
+-- | an initializer with the initial range specified.
+initConstM :: (Monad m) => a -> a -> InitializerM m a b
+initConstM x1 x2 pred = do
+  y1 <- pred x1
+  y2 <- pred x2
+  return $ Seq.fromList [LEnd x1 y1, REnd x1 y1,LEnd x2 y2, REnd x2 y2]
+
+-- | an initializer that searches for the full bound.
+initBoundedM :: (Monad m, Bounded a) => InitializerM m a b
+initBoundedM = initConstM minBound maxBound
+
+-- | a cutter for integral types.
+cutIntegralM :: (Monad m, Integral a) => CutterM m a b
+cutIntegralM _ x1 x2
+  | x1+1 >= x2 = return Nothing
+  | otherwise  = return $ Just ((x1+1)`div`2 + x2 `div`2)
 
 -- | The most generalized version of search.
 searchWithM :: forall m a b. (Functor m, Monad m, Eq b) => BinarySearchM m a b
@@ -71,18 +89,18 @@ searchWithM init cut pred = do
 
     -- precondition : b1 /= b2
     drillDown :: a -> b -> a -> b -> m (Seq (BookEnd a b))
-    drillDown a1 b1 a2 b2 = do
-      mc <- cut pred a1 a2
+    drillDown x1 y1 x2 y2 = do
+      mc <- cut pred x1 x2
       case mc of
-        Nothing -> return $ Seq.fromList [REnd a1 b1, LEnd a2 b2]
-        Just a3 -> do
-          b3 <- pred a3
+        Nothing -> return $ Seq.fromList [REnd x1 y1, LEnd x2 y2]
+        Just x3 -> do
+          y3 <- pred x3
           case () of
-            _ | b3==b1 -> drillDown a3 b3 a2 b2
-            _ | b3==b2 -> drillDown a1 b1 a3 b3
+            _ | y3==y1 -> drillDown x3 y3 x2 y2
+            _ | y3==y2 -> drillDown x1 y1 x3 y3
             _ -> do
-              y1 <-  drillDown a1 b1 a3 b3
-              y2 <-  drillDown a3 b3 a2 b2
+              y1 <-  drillDown x1 y1 x3 y3
+              y2 <-  drillDown x3 y3 x2 y2
               return $ y1 >< y2
 
     finalize :: Seq (BookEnd a b) -> Seq (Range a b)
