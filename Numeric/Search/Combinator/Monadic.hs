@@ -42,7 +42,7 @@ instance Monad (Evidence e) where
 -- | @(value, (lo,hi))@ represents the finding that @pred x == value@ for @lo <= x <= hi@.
 -- By using this type, we can readily 'lookup' a list of 'Range' .
 
-type Range bool a = (bool, (a,a))
+type Range b a = (b, (a,a))
 
 
 -- | A type @x@ is an instance of 'SearchInitializer' @a@, if @x@ can be used to set up the lower and upper inital values for
@@ -50,7 +50,7 @@ type Range bool a = (bool, (a,a))
 -- .
 -- 'initializeSearchM' should generate a list of 'Range' s, where each 'Range' has different -- predicate.
 class InitializesSearch a x where
-  initializeSearchM :: (Monad m, Eq bool)=> x -> (a -> m bool) -> m [Range bool a]
+  initializeSearchM :: (Monad m, Eq b)=> x -> (a -> m b) -> m [Range b a]
 
 -- | Set the lower and upper boundary explicitly.
 instance InitializesSearch a (a,a) where
@@ -88,6 +88,21 @@ instance InitializesSearch a ([a],[a]) where
 
     go (pLo, lo,los) (pHi, hi, his)
 
+-- * Splitters
+
+type Splitter a = a -> a -> Maybe a
+
+-- | Perform split forever, until we cannot find a mid-value due to machine precision.
+splitForever :: Integral a => Splitter a
+splitForever lo hi = let mid = lo `div` 2 + hi `div` 2 in
+  if lo == mid || mid == hi then Nothing
+  else Just mid
+
+-- | Perform splitting until @hi - lo <= eps@ .
+splitTill :: Integral a => a -> Splitter a
+splitTill eps lo hi
+  | hi - lo <= eps = Nothing
+  | otherwise      = splitForever lo hi
 
 -- * Searching
 
@@ -95,13 +110,13 @@ instance InitializesSearch a ([a],[a]) where
 --
 -- 'searchM' carefully keeps track of the latest predicate found, so that it works well with the 'Evidence' class.
 
-searchM :: forall a m bool init . (Monad m, InitializesSearch a init, Eq bool) =>
-           init -> (a -> a -> Maybe a) -> (a -> m bool) -> m [Range bool a]
+searchM :: forall a m b init . (Monad m, InitializesSearch a init, Eq b) =>
+           init -> Splitter a -> (a -> m b) -> m [Range b a]
 searchM init0 split0 pred0 = do
   ranges0 <- initializeSearchM init0 pred0
   go ranges0
     where
-      go :: [Range bool a] -> m [Range bool a]
+      go :: [Range b a] -> m [Range b a]
       go (r1@(p1, (lo1, hi1)):r2@(p2, (lo2, hi2)):rest) = case split0 hi1 lo2 of
         Nothing   -> (r1:) <$> go (r2:rest)
         Just mid1 -> do
@@ -110,3 +125,14 @@ searchM init0 split0 pred0 = do
              | p2 == pMid -> go $ r1 : (pMid, (mid1,hi2)) : rest
              | otherwise  -> go $ r1 : (pMid, (mid1,mid1)) : r2 : rest
       go xs = return xs
+
+-- * Postprocess
+
+-- | Pick up the smallest @a@ that satisfies @pred a == b@ .
+smallest :: (Eq b) => b -> [Range b a] -> Maybe a
+smallest b rs = fst <$> lookup b rs
+
+
+-- | Pick up the largest @a@ that satisfies @pred a == b@ .
+largest :: (Eq b) => b -> [Range b a] -> Maybe a
+largest b rs = snd <$>lookup b rs
