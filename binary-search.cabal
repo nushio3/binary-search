@@ -1,5 +1,5 @@
 Name:           binary-search
-Version:        0.1
+Version:        0.9
 Build-Type:     Simple
 License:        BSD3
 license-file:   LICENSE
@@ -7,13 +7,36 @@ Author:         Ross Paterson <ross@soi.city.ac.uk>, Takayuki Muranushi <muranus
 Maintainer:     Takayuki Muranushi <muranushi@gmail.com>
 Category:       Algorithms
 Synopsis:       Binary and exponential searches
-Description:    These modules address the problem of finding the boundary
-                of an upward-closed set of integers, using a combination
-                of exponential and binary searches.
-                .
-                Variants are provided
-                for searching within bounded and unbounded intervals of
-                both 'Integer' and bounded integral types.
+Description:
+            __Introduction__
+            .
+            This package provides varieties of binary search functions.
+            .
+            These search function can search for predicates of the type
+            @pred :: (Integral a, Eq b) => a -> b@, or monadic predicates
+            @pred :: (Integral a, Eq b, Monad m) => a -> m b@.
+            The predicates must satisfy that the domain range for any codomain value
+            is continuous; that is, @∀x≦y≦z. pred x == pred z ⇒ pred y == pred x@ .
+            .
+            For example, we can address the problem of finding the boundary
+            of an upward-closed set of integers, using a combination
+            of exponential and binary searches.
+            .
+            Variants are provided
+            for searching within bounded and unbounded intervals of
+            both 'Integer' and bounded integral types.
+            .
+            The package was created by Ross Paterson, and extended
+            by Takayuki Muranushi, to be used together with SMT solvers.
+            .
+            __The Module Structure__
+            .
+            *  "Numeric.Search.Combinator.Monadic" provides the most generic combinators. "Numeric.Search.Combinator.Pure" provides the pure version of them.
+            *  "Numeric.Search" exports both pure and monadic version.
+            *  "Numeric.Search.Bounded" ,  "Numeric.Search.Integer" ,  "Numeric.Search.Range" provides the various specialized searchers, which means less number of function arguments, and easier to use.
+            .
+            <<https://travis-ci.org/nushio3/binary-search.svg?branch=master>>
+
 cabal-version:      >=1.8
 
 library

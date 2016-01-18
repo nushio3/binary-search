@@ -60,7 +60,18 @@ instance InitializesSearch a (a,a) where
     return $ if | pLo == pHi -> [(,) pLo (lo,hi)]
                 | otherwise  -> [(,) pLo (lo,lo), (,) pHi (hi,hi)]
 
--- | Set the lower and upper boundary from those first available from the lists.
+-- | Set the lower boundary explicitly and search for the upper boundary.
+instance InitializesSearch a (a,[a]) where
+  initializeSearchM (lo,his) = initializeSearchM ([lo],his)
+
+-- | Set the upper boundary explicitly and search for the lower boundary.
+instance InitializesSearch a ([a],a) where
+  initializeSearchM (los,hi) = initializeSearchM (los,[hi])
+
+
+-- | Set the lower and upper boundary from those available from the candidate lists.
+-- From the pair of list, the @initializeSearchM@ tries to find the first @(lo, hi)@
+-- such that @pred lo /= pred hi@, by the breadth-first search.
 instance InitializesSearch a ([a],[a]) where
   initializeSearchM ([], []) _ = return []
   initializeSearchM ([], x:_) pred0 = do

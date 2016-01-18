@@ -14,30 +14,20 @@
 
 
 module Numeric.Search (
--- * Pure combinators
--- $pureCombinators
+         -- * Evidence
+         Evidence(..),
+         -- * Search Range
+         Range,
+         InitializesSearch,
+         -- * Splitters
+         splitForever, splitTill,
 
--- ** Types
-Range,
--- ** Searchers
-
--- ** Combinators
-
--- * Monadic combinators
--- $monadicCombinators
-
--- ** Searchers
-searchM
--- ** Combinators
+         -- * Search
+         search, searchM,
+         -- * Postprocess
+         smallest, largest
 
 ) where
 
 import Numeric.Search.Combinator.Pure
 import Numeric.Search.Combinator.Monadic
-
-{- $pureCombinators
-   These are pure.
--}
-{- $monadicCombinators
-   These are monadic.
- -}
