@@ -1,3 +1,23 @@
-language: haskell
+# c.f. https://github.com/commercialhaskell/stack/wiki/Travis
+sudo: false
+
 before_install:
-        cabal update
+  # enable stack
+  - mkdir -p ~/.local/bin
+  - mkdir -p ~/.local/lib
+  - export PATH=~/.local/bin:$PATH
+  - export LD_LIBRARY_PATH=~/.local/lib:$LD_LIBRARY_PATH
+  - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+  - export PATH=/opt/ghc/7.10.3/bin:$PATH
+
+addons:
+  apt:
+    sources:
+    - hvr-ghc
+    packages:
+    - ghc-7.10.3
+    - libgmp-dev
+
+script:
+  - stack --no-terminal --skip-ghc-check build --ghc-options=-ferror-spans
+  - stack test

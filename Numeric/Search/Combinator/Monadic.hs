@@ -1,12 +1,44 @@
 -- | Monadic binary search combinators.
 
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor, ScopedTypeVariables #-}
 
 module Numeric.Search.Combinator.Monadic where
 
 import           Control.Applicative((<$>))
 import           Data.Sequence as Seq
 import           Prelude hiding (init, pred)
+
+-- * Evidence
+
+-- | The 'Evidence' datatype is similar to 'Either' , but differes in that all 'CounterExample' values are
+--   equal to each other, and all 'Example' values are also
+--   equal to each other. The 'Evidence' type is used to binary search for some predicate and also return evidences for that.
+
+data Evidence a b = CounterExample a | Example b
+                  deriving (Show, Read, Functor)
+
+instance Eq (Evidence b a) where
+  CounterExample _ == CounterExample _ = True
+  Example _        == Example _        = True
+  _                == _                = False
+
+instance Ord (Evidence b a) where
+  CounterExample _ `compare` CounterExample _ = EQ
+  Example _        `compare` Example _        = EQ
+  CounterExample _ `compare` Example _        = GT
+  Example _        `compare` CounterExample _ = LT
+
+instance Applicative (Evidence e) where
+    pure                    = Example
+    CounterExample  e <*> _ = CounterExample e
+    Example f <*> r         = fmap f r
+
+instance Monad (Evidence e) where
+    return                  = Example
+    CounterExample  l >>= _ = CounterExample l
+    Example r >>= k         = k r
+
+-- * Searching
 
 -- | The generalized type for binary search functions.
 type BinarySearchM m a b =
