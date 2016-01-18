@@ -1,11 +1,10 @@
 -- | Monadic binary search combinators.
 
-{-# LANGUAGE DeriveFunctor, MultiParamTypeClasses, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, MultiWayIf, ScopedTypeVariables, TupleSections #-}
 
 module Numeric.Search.Combinator.Monadic where
 
 import           Control.Applicative((<$>))
-import           Data.Sequence as Seq
 import           Prelude hiding (init, pred)
 
 -- * Evidence
@@ -40,113 +39,74 @@ instance Monad (Evidence e) where
 
 -- * Search range
 
+-- | @(value, (lo,hi))@ represents the finding that @pred x == value@ for @lo <= x <= hi@.
+-- By using this type, we can readily 'lookup' a list of 'Range' .
+
+type Range bool a = (bool, (a,a))
+
+
 -- | A type @x@ is an instance of 'SearchInitializer' @a@, if @x@ can be used to set up the lower and upper inital values for
 -- binary search over values of type @a@.
-class SearchInitializer a x where
-  initializeSearchM :: Monad m => x -> (a -> m bool) -> m (a,a)
+-- .
+-- 'initializeSearchM' should generate a list of 'Range' s, where each 'Range' has different -- predicate.
+class InitializesSearch a x where
+  initializeSearchM :: (Monad m, Eq bool)=> x -> (a -> m bool) -> m [Range bool a]
+
+-- | Set the lower and upper boundary explicitly.
+instance InitializesSearch a (a,a) where
+  initializeSearchM (lo,hi) pred0 = do
+    pLo <- pred0 lo
+    pHi <- pred0 hi
+    return $ if | pLo == pHi -> [(,) pLo (lo,hi)]
+                | otherwise  -> [(,) pLo (lo,lo), (,) pHi (hi,hi)]
+
+-- | Set the lower and upper boundary from those first available from the lists.
+instance InitializesSearch a ([a],[a]) where
+  initializeSearchM ([], []) _ = return []
+  initializeSearchM ([], x:_) pred0 = do
+    p <- pred0 x
+    return [(,) p (x,x)]
+  initializeSearchM (x:_, []) pred0 = do
+    p <- pred0 x
+    return [(,) p (x,x)]
+  initializeSearchM (lo:los,hi:his) pred0 = do
+    pLo <- pred0 lo
+    pHi <- pred0 hi
+    let
+      pop (p,x, []) = return (p,x,[])
+      pop (p,_, x2:xs) = do
+        p2 <- pred0 x2
+        return (p2, x2, xs)
+
+      go pez1@(p1,x1,xs1) pez2@(p2,x2,xs2)
+          | p1 /= p2             = return [(,)p1 (x1,x1), (,)p2 (x2,x2)]
+          | null xs1 && null xs2 = return [(,)p1 (x1,x2)]
+          | otherwise = do
+              pez1' <- pop pez1
+              pez2' <- pop pez2
+              go pez1' pez2'
+
+    go (pLo, lo,los) (pHi, hi, his)
+
 
 -- * Searching
 
--- | The generalized type for binary search functions.
-type BinarySearchM m a b =
-  InitializerM m a b ->
-  CutterM m a b ->
-  PredicateM m a b ->
-  m (Seq (Range a b))
-
--- | 'BookEnd' comes in order [LEnd, REnd, LEnd, REnd ...], and
--- represents the ongoing state of the search results.
--- Two successive 'BookEnd' @LEnd x1 y1@, @REnd x2 y1@ represents a
--- claim that @pred x == y1@ for all @x@ such that @x1 <= x <= x2@ .
--- Like this:
+-- | Mother of all search variations.
 --
--- > is (x^2 > 20000) ?
--- >
--- > LEnd    REnd  LEnd     REnd
--- > 0        100  200       300
--- > |_ False _|    |_ True  _|
+-- 'searchM' carefully keeps track of the latest predicate found, so that it works well with the 'Evidence' class.
 
-data BookEnd a b
-      = REnd !a !b
-      | LEnd !a !b
-      deriving (Eq, Show)
-
--- | 'Range' @((x1,x2),y)@ denotes that @pred x == y@ for all
--- @x1 <= x <= x2@ .
-type Range a b = ((a,a),b)
-
--- | 'PredicateM' @m a b@ calculates the predicate in the context @m@.
-type PredicateM m a b = a -> m b
-
--- | 'InitializerM' generates the initial set of ranges.
-type InitializerM m a b = PredicateM m a b -> m (Seq (BookEnd a b))
-
--- | 'CutterM' @p x1 x2@ decides if we should further investigate the
--- gap between @x1@ and @x2@. If so, it gives a new value @x3@ wrapped
--- in a 'Just'. 'CutterM' may optionally use the predicate.
-type CutterM m a b = PredicateM m a b -> a -> a -> m (Maybe a)
-
-
--- | an initializer with the initial range specified.
-initConstM :: (Monad m) => a -> a -> InitializerM m a b
-initConstM x1 x2 pred = do
-  y1 <- pred x1
-  y2 <- pred x2
-  return $ Seq.fromList [LEnd x1 y1, REnd x1 y1,LEnd x2 y2, REnd x2 y2]
-
--- | an initializer that searches for the full bound.
-initBoundedM :: (Monad m, Bounded a) => InitializerM m a b
-initBoundedM = initConstM minBound maxBound
-
--- | a cutter for integral types.
-cutIntegralM :: (Monad m, Integral a) => CutterM m a b
-cutIntegralM _ x1 x2
-  | x1+1 >= x2 = return Nothing
-  | otherwise  = return $ Just ((x1+1)`div`2 + x2 `div`2)
-
--- | The most generalized version of search.
-searchWithM :: forall m a b. (Functor m, Monad m, Eq b) => BinarySearchM m a b
-searchWithM init cut pred = do
-  seq0 <- init pred
-  finalize <$> go seq0
-  where
-    go :: Seq (BookEnd a b) -> m (Seq (BookEnd a b))
-    go seq0 = case viewl seq0 of
-      EmptyL -> return seq0
-      (x1 :< seq1) -> do
-        let skip = (x1 <|) <$> go seq1
-        case viewl seq1 of
-          EmptyL -> skip
-          (x2 :< seq2) -> case (x1,x2) of
-            (REnd a1 b1, LEnd a2 b2) -> case b1==b2 of
-              True  -> go seq2 -- merge the two regions
-              False ->  do
-                y1 <- drillDown a1 b1 a2 b2
-                y2 <- go seq2
-                return $ y1 >< y2
-            _ -> skip
-
-    -- precondition : b1 /= b2
-    drillDown :: a -> b -> a -> b -> m (Seq (BookEnd a b))
-    drillDown x1 y1 x2 y2 = do
-      mc <- cut pred x1 x2
-      case mc of
-        Nothing -> return $ Seq.fromList [REnd x1 y1, LEnd x2 y2]
-        Just x3 -> do
-          y3 <- pred x3
-          case () of
-            _ | y3==y1 -> drillDown x3 y3 x2 y2
-            _ | y3==y2 -> drillDown x1 y1 x3 y3
-            _ -> do
-              y1 <-  drillDown x1 y1 x3 y3
-              y2 <-  drillDown x3 y3 x2 y2
-              return $ y1 >< y2
-
-    finalize :: Seq (BookEnd a b) -> Seq (Range a b)
-    finalize seqE = case viewl seqE of
-      EmptyL -> Seq.empty
-      (x1 :< seqE1) -> case viewl seqE1 of
-        EmptyL -> finalize seqE1
-        (x2 :< seqE2) -> case (x1,x2) of
-          (LEnd x1 y1, REnd x2 y2) | y1==y2 -> ((x1,x2), y1) <| finalize seqE2
-          _                                 -> finalize seqE1
+searchM :: forall a m bool init . (Monad m, InitializesSearch a init, Eq bool) =>
+           init -> (a -> a -> Maybe a) -> (a -> m bool) -> m [Range bool a]
+searchM init0 split0 pred0 = do
+  ranges0 <- initializeSearchM init0 pred0
+  go ranges0
+    where
+      go :: [Range bool a] -> m [Range bool a]
+      go (r1@(p1, (lo1, hi1)):r2@(p2, (lo2, hi2)):rest) = case split0 hi1 lo2 of
+        Nothing   -> (r1:) <$> go (r2:rest)
+        Just mid1 -> do
+          pMid <- pred0 mid1
+          if | p1 == pMid -> go $ (pMid, (lo1,mid1)) : r2 : rest
+             | p2 == pMid -> go $ r1 : (pMid, (mid1,hi2)) : rest
+             | otherwise  -> go $ r1 : (pMid, (mid1,mid1)) : r2 : rest
+      go xs = return xs

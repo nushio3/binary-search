@@ -26,14 +26,8 @@ Range,
 -- * Monadic combinators
 -- $monadicCombinators
 
--- ** Types
-BinarySearchM,
-PredicateM,
-InitializerM,
-CutterM,
-
 -- ** Searchers
-searchWithM
+searchM
 -- ** Combinators
 
 ) where
