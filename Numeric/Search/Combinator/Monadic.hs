@@ -1,6 +1,6 @@
 -- | Monadic binary search combinators.
 
-{-# LANGUAGE DeriveFunctor, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor, MultiParamTypeClasses, ScopedTypeVariables #-}
 
 module Numeric.Search.Combinator.Monadic where
 
