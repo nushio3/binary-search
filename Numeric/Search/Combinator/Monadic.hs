@@ -12,7 +12,7 @@ import           Prelude hiding (init, pred)
 
 -- | The 'Evidence' datatype is similar to 'Either' , but differes in that all 'CounterExample' values are
 --   equal to each other, and all 'Example' values are also
---   equal to each other. The 'Evidence' type is used to binary search for some predicate and also return evidences for that.
+--   equal to each other. The 'Evidence' type is used to binary-searching for some predicate and meanwhile returning evidences for that.
 
 data Evidence a b = CounterExample a | Example b
                   deriving (Show, Read, Functor)
@@ -37,6 +37,13 @@ instance Monad (Evidence e) where
     return                  = Example
     CounterExample  l >>= _ = CounterExample l
     Example r >>= k         = k r
+
+-- * Search range
+
+-- | A type @x@ is an instance of 'SearchInitializer' @a@, if @x@ can be used to set up the lower and upper inital values for
+-- binary search over values of type @a@.
+class SearchInitializer a x where
+  initializeSearchM :: Monad m => x -> (a -> m bool) -> m (a,a)
 
 -- * Searching
 
