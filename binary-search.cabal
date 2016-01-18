@@ -1,11 +1,10 @@
 Name:           binary-search
 Version:        0.1
-Build-Depends:  base
 Build-Type:     Simple
 License:        BSD3
 license-file:   LICENSE
 Author:         Ross Paterson <ross@soi.city.ac.uk>, Takayuki Muranushi <muranushi@gmail.com>
-Maintainer:     Takayuki Muranushi <muranushi@gmail.com>   
+Maintainer:     Takayuki Muranushi <muranushi@gmail.com>
 Category:       Algorithms
 Synopsis:       Binary and exponential searches
 Description:    These modules address the problem of finding the boundary
@@ -44,7 +43,7 @@ Test-Suite spec
   Ghc-Options: -Wall
   Main-Is: Spec.hs
   Other-Modules:    PureSpec
-                    
+
   Build-Depends:    base >=4.5 && < 5
                   , binary-search
 

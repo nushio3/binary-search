@@ -14,10 +14,10 @@
 -----------------------------------------------------------------------------
 
 module Numeric.Search.Integer (
-	-- * One-dimensional searches
-	search, searchFrom, searchTo,
-	-- * Two-dimensional searches
-	search2) where
+        -- * One-dimensional searches
+        search, searchFrom, searchTo,
+        -- * Two-dimensional searches
+        search2) where
 
 import Data.Maybe (fromMaybe)
 
@@ -46,9 +46,9 @@ search p = fromMaybe (searchFrom p 1) (searchTo p 0)
 searchFrom :: (Integer -> Bool) -> Integer -> Integer
 searchFrom p = search_from 1
   where search_from step l
-	  | p l' = searchIntegerRange p l (l'-1)
-	  | otherwise = search_from (2*step) (l'+1)
-	  where l' = l + step
+          | p l' = searchIntegerRange p l (l'-1)
+          | otherwise = search_from (2*step) (l'+1)
+          where l' = l + step
 
 -- | /O(log(h-n))/.
 -- Search the integers up to a given upper bound.
@@ -59,10 +59,10 @@ searchTo :: (Integer -> Bool) -> Integer -> Maybe Integer
 searchTo p h0
   | p h0 = Just (search_to 1 h0)
   | otherwise = Nothing
-  where search_to step h		-- @step >= 1 && p h@
-	  | p h' = search_to (2*step) h'
-	  | otherwise = searchSafeRange p (h'+1) h
-	  where h' = h - step
+  where search_to step h                -- @step >= 1 && p h@
+          | p h' = search_to (2*step) h'
+          | otherwise = searchSafeRange p (h'+1) h
+          where h' = h - step
 
 -- | /O(m log(n\/m))/.
 -- Two-dimensional search, using an algorithm due described in
@@ -84,23 +84,24 @@ searchTo p h0
 --
 search2 :: (Integer -> Integer -> Bool) -> [(Integer,Integer)]
 search2 p = search2Rect p 0 0 hx hy []
-  where	hx = searchFrom (\ x -> p x 0) 0
-	hy = searchFrom (\ y -> p 0 y) 0
+  where
+    hx = searchFrom (\ x -> p x 0) 0
+    hy = searchFrom (\ y -> p 0 y) 0
 
 search2Rect :: (Integer -> Integer -> Bool) ->
-	Integer -> Integer -> Integer -> Integer ->
-	[(Integer,Integer)] -> [(Integer,Integer)]
+        Integer -> Integer -> Integer -> Integer ->
+        [(Integer,Integer)] -> [(Integer,Integer)]
 search2Rect p lx ly hx hy
   | lx > hx || ly > hy = id
   | lx == hx && ly == hy = if p lx ly then ((lx, ly) :) else id
   | hx-lx > hy-ly =
-	let	mx = (lx+hx) `div` 2
-		my = searchIntegerRange (\ y -> p mx y) ly hy
-	in search2Rect p lx my mx hy . search2Rect p (mx+1) ly hx (my-1)
+        let        mx = (lx+hx) `div` 2
+                   my = searchIntegerRange (\ y -> p mx y) ly hy
+        in search2Rect p lx my mx hy . search2Rect p (mx+1) ly hx (my-1)
   | otherwise =
-	let	mx = searchIntegerRange (\ x -> p x my) lx hx
-		my = (ly+hy) `div` 2
-	in search2Rect p lx (my+1) (mx-1) hy . search2Rect p mx ly hx my
+        let        mx = searchIntegerRange (\ x -> p x my) lx hx
+                   my = (ly+hy) `div` 2
+        in search2Rect p lx (my+1) (mx-1) hy . search2Rect p mx ly hx my
 
 -- | Search a bounded interval of integers.
 --
@@ -122,4 +123,4 @@ searchSafeRange p l h
   | l == h = l
   | p m = searchSafeRange p l m
   | otherwise = searchSafeRange p (m+1) h
-  where m = (l + h) `div` 2	-- If l < h, then l <= m < h
+  where m = (l + h) `div` 2        -- If l < h, then l <= m < h
