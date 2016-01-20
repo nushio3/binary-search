@@ -16,27 +16,68 @@
 --
 -- __Example 1.__ Find the approximate square root of 3.
 --
--- >>> largest True $ search positiveExponential divForever (\x -> x^2 < 3000000)
+-- >>> largest  True  $ search positiveExponential divForever (\x -> x^2 < 3000000)
 -- Just 1732
 -- >>> smallest False $ search positiveExponential divForever (\x -> x^2 < 3000000)
 -- Just 1733
--- >>> largest True $ search positiveExponential divideForever (\x -> x^2 < (3::Double))
+-- >>> largest  True  $ search positiveExponential divideForever (\x -> x^2 < (3::Double))
 -- Just 1.7320508075688772
+-- >>> largest  True  $ search positiveExponential (divideTill 0.125) (\x -> x^2 < (3::Double))
+-- Just 1.625
 --
--- >>> import Data.SBV
--- >>> let x ⊂ r = (2 .<= x &&& x .< r-2)
--- >>> let x ∅ y = (abs (x-y) .>=4)
--- >>> let contain3 r = \x y z -> bAnd [x ⊂ r, y ⊂ r, z ⊂ r]
+-- __Example 2.__ Find the range of integers whose quotinent 7 is equal to 6.
+--
+-- This is an example of multi-valued predicate.
+--
+-- >>> smallest 6 $ search (fromTo 0 100) divForever (\x -> x `div` 7)
+-- Just 42
+-- >>> largest  6 $ search (fromTo 0 100) divForever (\x -> x `div` 7)
+-- Just 48
+--
+-- __Example 3.__ Find the minimum size of the container that can fit three boxes of size 4,
+-- and find an actual way to fit them.
+--
+-- We will solve this using a satisfiability modulo theory (SMT) solver. Since we need to evoke 'IO'
+-- to call for the SMT solver,
+-- This is a usecase for a monadic binary search.
+--
+-- >>> import Data.List (isPrefixOf)
+-- >>> :{
+-- do
+--   -- x fits within the box
+--   let x ⊂ r = (0 .<= x &&& x .<= r-4)
+--   -- x and y does not collide
+--   let x ∅ y = (x+4 .<= y )
+--   let contain3 :: Integer -> IO (Evidence () String)
+--       contain3 r' = do
+--         let r = fromInteger r' :: SInteger
+--         ret <- show <$> sat (\x y z -> bAnd [x ⊂ r, y ⊂ r, z ⊂ r, x ∅ y, y ∅ z])
+--         if "Satisfiable" `isPrefixOf` ret
+--           then return $ Evidence ret
+--           else return $ CounterEvidence ()
+--   Just sz  <- smallest evidence <$> searchM positiveExponential divForever contain3
+--   putStrLn $ "Size of the container: " ++ show sz
+--   Just msg <- evidenceForSmallest <$> searchM positiveExponential divForever contain3
+--   putStrLn msg
+-- :}
+-- Size of the container: 12
+-- Satisfiable. Model:
+--   s0 = 0 :: Integer
+--   s1 = 4 :: Integer
+--   s2 = 8 :: Integer
 
 module Numeric.Search where
 
 import           Control.Applicative((<$>))
 import           Data.Functor.Identity
+import           Data.Maybe (fromJust, listToMaybe)
 import           Prelude hiding (init, pred)
 
-
 -- $setup
+-- All the doctests in this document assume:
 -- >>> :set -XFlexibleContexts
+-- >>> import Data.SBV
+
 
 -- * Evidence
 
@@ -75,6 +116,18 @@ instance Monad (Evidence e) where
     CounterEvidence  l >>= _ = CounterEvidence l
     Evidence r >>= k         = k r
 
+-- | 'evidence' = 'Evidence' 'undefined' . We can use this combinator to look up for some 'Evidence',
+-- since all 'Evidence's are equal.
+evidence :: Evidence a b
+evidence = Evidence undefined
+
+-- | 'counterEvidence' = 'CounterEvidence' 'undefined' . We can use this combinator to look up for any 'CounterEvidence',
+-- since all 'CounterEvidence's are equal.
+counterEvidence :: Evidence a b
+counterEvidence = CounterEvidence undefined
+
+
+
 -- * Search range
 
 
@@ -82,7 +135,7 @@ instance Monad (Evidence e) where
 -- The 'Range' type also holds the evidences for the lower and the upper boundary.
 
 data Range b a = Range {loKey :: b, loVal :: a, hiKey :: b, hiVal :: a}
-
+                 deriving (Show, Read, Eq, Ord)
 
 -- | The lists of candidate for lower and upper bounds from which the search may be started.
 type SearchRange a = ([a], [a])
@@ -118,6 +171,10 @@ initializeSearchM _ _ = return []
 minToMax :: Bounded a => SearchRange a
 minToMax = ([minBound], [maxBound])
 
+-- | Search between the fixed pair of boundaries .
+fromTo :: a -> a -> SearchRange a
+fromTo x y= ([x], [y])
+
 
 exponential :: Num a => SearchRange a
 exponential = (iterate (*2) (-1), 0 : iterate (*2) 1)
@@ -140,10 +197,15 @@ nonPositiveExponential = (iterate (*2) (-1), [0])
 
 type Splitter a = a -> a -> Maybe a
 
--- | Perform split forever, until we cannot find a mid-value due to machine precision.
--- This splitter uses the `div` funtion.
+-- | Perform split forever, until we cannot find a mid-value because @hi-lo < 2@.
+-- This splitter assumes that the arguments are Integral, and uses the `div` funtion.
+--
+-- Note that
+-- >>> prove $ \x y -> y .>= x+2 ==> let z = (x+1) `sDiv` 2 + y `sDiv` 2  in x .< z &&& z .< (y::SInteger)
+-- Q.E.D.
+
 divForever :: Integral a => Splitter a
-divForever lo hi = let mid = lo `div` 2 + hi `div` 2 in
+divForever lo hi = let mid = (lo+1) `div` 2 + hi `div` 2 in
   if lo == mid || mid == hi then Nothing
   else Just mid
 
@@ -210,3 +272,7 @@ smallest b rs = loVal <$> lookupRanges b rs
 -- | Pick up the largest @a@ that satisfies @pred a == b@ .
 largest :: (Eq b) => b -> [Range b a] -> Maybe a
 largest b rs = hiVal <$> lookupRanges b rs
+
+-- | Pick up the smallest evidence for @a@ which satisfies @pred a@ .
+evidenceForSmallest :: [Range (Evidence b1 b2) a] -> Maybe b2
+evidenceForSmallest rs = listToMaybe [e | Evidence e <- map loKey rs]
