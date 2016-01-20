@@ -16,9 +16,10 @@
 --
 -- __Example__
 --
--- >>> :set -XFlexibleContexts
 -- >>> largest True $ search positiveExponential splitForever (\x -> x^2 < (3000000 :: Int))
--- 1732
+-- Just 1732
+-- >>> smallest False $ search positiveExponential splitForever (\x -> x^2 < (3000000 :: Int))
+-- Just 1733
 
 
 module Numeric.Search (
@@ -26,7 +27,7 @@ module Numeric.Search (
          Evidence(..),
          -- * Search Range
          Range,
-         InitializesSearch,
+         SearchRange,
          -- * Splitters
          splitForever, splitTill,
 
@@ -39,3 +40,6 @@ module Numeric.Search (
 
 import Numeric.Search.Combinator.Pure
 import Numeric.Search.Combinator.Monadic
+
+-- $setup
+-- >>> :set -XFlexibleContexts

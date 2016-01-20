@@ -6,7 +6,7 @@ module Numeric.Search.Combinator.Pure
          M.Evidence(..),
          -- * Search Range
          M.Range,
-         M.InitializesSearch,
+         M.SearchRange,
          -- * Splitters
          M.splitForever, M.splitTill,
 
@@ -21,6 +21,6 @@ import qualified Numeric.Search.Combinator.Monadic as M
 
 
 -- | Perform search over pure predicates. The monadic version of this is 'M.searchM' .
-search :: (M.InitializesSearch a init, Eq b) =>
-           init -> M.Splitter a -> (a -> b) -> [M.Range b a]
+search :: (Eq b) =>
+          M.SearchRange a -> M.Splitter a -> (a -> b) -> [M.Range b a]
 search init0 split0 pred0 = runIdentity $ M.searchM init0 split0 (Identity . pred0)

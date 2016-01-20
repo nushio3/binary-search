@@ -1,6 +1,6 @@
 -- | Monadic binary search combinators.
 
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, MultiWayIf, ScopedTypeVariables, TupleSections #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, MultiWayIf, RecordWildCards, ScopedTypeVariables, TupleSections #-}
 
 module Numeric.Search.Combinator.Monadic where
 
@@ -13,8 +13,12 @@ import           Prelude hiding (init, pred)
 --   equal to each other, and all 'Evidence' values are also
 --   equal to each other. The 'Evidence' type is used to binary-searching for some predicate and meanwhile returning evidences for that.
 --
--- >>> Evidence 3 == Evidence 5
+-- In other words, 'Evidence' is a 'Bool' with additional information why it is 'True' or 'False'.
+--
+-- >>> Evidence "He owns the gun" == Evidence "He was at the scene"
 -- True
+-- >>> Evidence "He loved her" == CounterEvidence "He loved her"
+-- False
 data Evidence a b = CounterEvidence a | Evidence b
                   deriving (Show, Read, Functor)
 
@@ -39,99 +43,64 @@ instance Monad (Evidence e) where
     CounterEvidence  l >>= _ = CounterEvidence l
     Evidence r >>= k         = k r
 
--- | 'evidence' = 'Evidence' 'undefined' . We can use this combinator to look up for some 'Evidence',
--- since all 'Evidence's are equal.
-evidence :: Evidence a b
-evidence = Evidence undefined
-
--- | 'counterEvidence' = 'CounterEvidence' 'undefined' . We can use this combinator to look up for any 'CounterEvidence',
--- since all 'CounterEvidence's are equal.
-counterEvidence :: Evidence a b
-counterEvidence = CounterEvidence undefined
-
 -- * Search range
 
 
--- | @(value, (lo,hi))@ represents the search result that @pred x == value@ for @lo <= x <= hi@.
--- By using this type, we can readily 'lookup' a list of 'Range' .
+-- | The @Range k lo  k' hi@ represents the search result that @pred x == k@ for @lo <= x <= hi@.
+-- The 'Range' type also holds the evidences for the lower and the upper boundary.
 
-type Range b a = (b, (a,a))
+data Range b a = Range {loKey :: b, loVal :: a, hiKey :: b, hiVal :: a}
 
 
--- | A type @x@ is an instance of 'SearchInitializer' @a@, if @x@ can be used to set up the lower and upper inital values for
--- binary search over values of type @a@.
--- .
--- 'initializeSearchM' should generate a list of 'Range' s, where each 'Range' has different -- predicate.
-class InitializesSearch a x where
-  initializeSearchM :: (Monad m, Eq b)=> x -> (a -> m b) -> m [Range b a]
-
--- | Set the lower and upper boundary explicitly.
-instance InitializesSearch a (a,a) where
-  initializeSearchM (lo,hi) pred0 = do
-    pLo <- pred0 lo
-    pHi <- pred0 hi
-    return $ if | pLo == pHi -> [(,) pLo (lo,hi)]
-                | otherwise  -> [(,) pLo (lo,lo), (,) pHi (hi,hi)]
-
--- | Set the lower boundary explicitly and search for the upper boundary.
-instance InitializesSearch a (a,[a]) where
-  initializeSearchM (lo,his) = initializeSearchM ([lo],his)
-
--- | Set the upper boundary explicitly and search for the lower boundary.
-instance InitializesSearch a ([a],a) where
-  initializeSearchM (los,hi) = initializeSearchM (los,[hi])
+-- | The lists of candidate for lower and upper bounds from which the search may be started.
+type SearchRange a = ([a], [a])
 
 
 -- | Set the lower and upper boundary from those available from the candidate lists.
 -- From the pair of list, the @initializeSearchM@ tries to find the first @(lo, hi)@
 -- such that @pred lo /= pred hi@, by the breadth-first search.
-instance InitializesSearch a ([a],[a]) where
-  initializeSearchM ([], []) _ = return []
-  initializeSearchM ([], x:_) pred0 = do
-    p <- pred0 x
-    return [(,) p (x,x)]
-  initializeSearchM (x:_, []) pred0 = do
-    p <- pred0 x
-    return [(,) p (x,x)]
-  initializeSearchM (lo:los,hi:his) pred0 = do
-    pLo <- pred0 lo
-    pHi <- pred0 hi
-    let
-      pop (p,x, []) = return (p,x,[])
-      pop (p,_, x2:xs) = do
-        p2 <- pred0 x2
-        return (p2, x2, xs)
 
-      go pez1@(p1,x1,xs1) pez2@(p2,x2,xs2)
-          | p1 /= p2             = return [(,)p1 (x1,x1), (,)p2 (x2,x2)]
-          | null xs1 && null xs2 = return [(,)p1 (x1,x2)]
-          | otherwise = do
-              pez1' <- pop pez1
-              pez2' <- pop pez2
-              go pez1' pez2'
+initializeSearchM :: (Monad m, Eq b)=> SearchRange a -> (a -> m b) -> m [Range b a]
+initializeSearchM (lo:los,hi:his) pred0 = do
+  pLo <- pred0 lo
+  pHi <- pred0 hi
+  let
+    pop (p,x, []) = return (p,x,[])
+    pop (p,_, x2:xs) = do
+      p2 <- pred0 x2
+      return (p2, x2, xs)
 
-    go (pLo, lo,los) (pHi, hi, his)
+    go pez1@(p1,x1,xs1) pez2@(p2,x2,xs2)
+        | p1 /= p2             = return [Range p1 x1 p1 x1, Range p2 x2 p2 x2]
+        | null xs1 && null xs2 = return [Range p1 x1 p2 x2]
+        | otherwise = do
+            pez1' <- pop pez1
+            pez2' <- pop pez2
+            go pez1' pez2'
+
+  go (pLo, lo,los) (pHi, hi, his)
+initializeSearchM _ _ = return []
 
 
 -- | Search between 'minBound' and 'maxBound' .
-minToMax :: Bounded a => (a, a)
-minToMax = (minBound, maxBound)
+minToMax :: Bounded a => SearchRange a
+minToMax = ([minBound], [maxBound])
 
 
-exponential :: Num a => ([a], [a])
+exponential :: Num a => SearchRange a
 exponential = (iterate (*2) (-1), 0 : iterate (*2) 1)
 
-positiveExponential :: Num a => (a, [a])
-positiveExponential = (1, iterate (*2) 2)
+positiveExponential :: Num a => SearchRange a
+positiveExponential = ([1], iterate (*2) 2)
 
-nonNegativeExponential :: Num a => (a, [a])
-nonNegativeExponential = (0, iterate (*2) 1)
+nonNegativeExponential :: Num a => SearchRange a
+nonNegativeExponential = ([0], iterate (*2) 1)
 
-negativeExponential :: Num a => ([a], a)
-negativeExponential = (iterate (*2) (-2), -1)
+negativeExponential :: Num a => SearchRange a
+negativeExponential = (iterate (*2) (-2), [-1])
 
-nonPositiveExponential :: Num a => ([a], a)
-nonPositiveExponential = (iterate (*2) (-1), 0)
+nonPositiveExponential :: Num a => SearchRange a
+nonPositiveExponential = (iterate (*2) (-1), [0])
 
 
 
@@ -157,28 +126,34 @@ splitTill eps lo hi
 --
 -- 'searchM' carefully keeps track of the latest predicate found, so that it works well with the 'Evidence' class.
 
-searchM :: forall a m b init . (Monad m, InitializesSearch a init, Eq b) =>
-           init -> Splitter a -> (a -> m b) -> m [Range b a]
+searchM :: forall a m b init . (Monad m, Eq b) =>
+           SearchRange a -> Splitter a -> (a -> m b) -> m [Range b a]
 searchM init0 split0 pred0 = do
   ranges0 <- initializeSearchM init0 pred0
   go ranges0
     where
       go :: [Range b a] -> m [Range b a]
-      go (r1@(p1, (lo1, hi1)):r2@(p2, (lo2, hi2)):rest) = case split0 hi1 lo2 of
+      go (r1@(Range p0 lo1 p1 hi1):r2@(Range p2 lo2 p3 hi2):rest) = case split0 hi1 lo2 of
         Nothing   -> (r1:) <$> go (r2:rest)
         Just mid1 -> do
           pMid <- pred0 mid1
-          if | p1 == pMid -> go $ (pMid, (lo1,mid1)) : r2 : rest
-             | p2 == pMid -> go $ r1 : (pMid, (mid1,hi2)) : rest
-             | otherwise  -> go $ r1 : (pMid, (mid1,mid1)) : r2 : rest
+          if | p1 == pMid -> go $ (Range p0 lo1 pMid mid1) : r2 : rest
+             | p2 == pMid -> go $ r1 : (Range pMid mid1 p3 hi2) : rest
+             | otherwise  -> go $ r1 : (Range pMid mid1 pMid mid1) : r2 : rest
       go xs = return xs
 
 -- * Postprocess
 
+lookupRanges :: (Eq b) => b -> [Range b a] -> Maybe (Range b a)
+lookupRanges k [] = Nothing
+lookupRanges k (r@Range{..}:rs)
+  | loKey == k  = Just r
+  | otherwise   = lookupRanges k rs
+
 -- | Pick up the smallest @a@ that satisfies @pred a == b@ .
 smallest :: (Eq b) => b -> [Range b a] -> Maybe a
-smallest b rs = fst <$> lookup b rs
+smallest b rs = loVal <$> lookupRanges b rs
 
 -- | Pick up the largest @a@ that satisfies @pred a == b@ .
 largest :: (Eq b) => b -> [Range b a] -> Maybe a
-largest b rs = snd <$>lookup b rs
+largest b rs = hiVal <$> lookupRanges b rs
