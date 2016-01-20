@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 -- | This package provides combinators to construct many variants of
 -- binary search.  Most generally, it provides the binary search over
 -- predicate of the form @('Eq' b, 'Monad' m) => a -> m b@ . The other
@@ -11,6 +13,12 @@
 -- PredicateM. That is, if for certain pair @(left, right) :: (a, a)@
 -- satisfies @pred left == val && pred right == val@, then also @pred
 -- x == val@ for all @x@ such that @left <= x <= right@ .
+--
+-- __Example__
+--
+-- >>> :set -XFlexibleContexts
+-- >>> largest True $ search positiveExponential splitForever (\x -> x^2 < (3000000 :: Int))
+-- 1732
 
 
 module Numeric.Search (

@@ -9,37 +9,50 @@ import           Prelude hiding (init, pred)
 
 -- * Evidence
 
--- | The 'Evidence' datatype is similar to 'Either' , but differes in that all 'CounterExample' values are
---   equal to each other, and all 'Example' values are also
+-- | The 'Evidence' datatype is similar to 'Either' , but differes in that all 'CounterEvidence' values are
+--   equal to each other, and all 'Evidence' values are also
 --   equal to each other. The 'Evidence' type is used to binary-searching for some predicate and meanwhile returning evidences for that.
-
-data Evidence a b = CounterExample a | Example b
+--
+-- >>> Evidence 3 == Evidence 5
+-- True
+data Evidence a b = CounterEvidence a | Evidence b
                   deriving (Show, Read, Functor)
 
 instance Eq (Evidence b a) where
-  CounterExample _ == CounterExample _ = True
-  Example _        == Example _        = True
-  _                == _                = False
+  CounterEvidence _ == CounterEvidence _ = True
+  Evidence _        == Evidence _        = True
+  _                 == _                 = False
 
 instance Ord (Evidence b a) where
-  CounterExample _ `compare` CounterExample _ = EQ
-  Example _        `compare` Example _        = EQ
-  CounterExample _ `compare` Example _        = GT
-  Example _        `compare` CounterExample _ = LT
+  CounterEvidence _ `compare` CounterEvidence _ = EQ
+  Evidence _        `compare` Evidence _        = EQ
+  CounterEvidence _ `compare` Evidence _        = GT
+  Evidence _        `compare` CounterEvidence _ = LT
 
 instance Applicative (Evidence e) where
-    pure                    = Example
-    CounterExample  e <*> _ = CounterExample e
-    Example f <*> r         = fmap f r
+    pure                     = Evidence
+    CounterEvidence  e <*> _ = CounterEvidence e
+    Evidence f <*> r         = fmap f r
 
 instance Monad (Evidence e) where
-    return                  = Example
-    CounterExample  l >>= _ = CounterExample l
-    Example r >>= k         = k r
+    return                   = Evidence
+    CounterEvidence  l >>= _ = CounterEvidence l
+    Evidence r >>= k         = k r
+
+-- | 'evidence' = 'Evidence' 'undefined' . We can use this combinator to look up for some 'Evidence',
+-- since all 'Evidence's are equal.
+evidence :: Evidence a b
+evidence = Evidence undefined
+
+-- | 'counterEvidence' = 'CounterEvidence' 'undefined' . We can use this combinator to look up for any 'CounterEvidence',
+-- since all 'CounterEvidence's are equal.
+counterEvidence :: Evidence a b
+counterEvidence = CounterEvidence undefined
 
 -- * Search range
 
--- | @(value, (lo,hi))@ represents the finding that @pred x == value@ for @lo <= x <= hi@.
+
+-- | @(value, (lo,hi))@ represents the search result that @pred x == value@ for @lo <= x <= hi@.
 -- By using this type, we can readily 'lookup' a list of 'Range' .
 
 type Range b a = (b, (a,a))
@@ -99,6 +112,29 @@ instance InitializesSearch a ([a],[a]) where
 
     go (pLo, lo,los) (pHi, hi, his)
 
+
+-- | Search between 'minBound' and 'maxBound' .
+minToMax :: Bounded a => (a, a)
+minToMax = (minBound, maxBound)
+
+
+exponential :: Num a => ([a], [a])
+exponential = (iterate (*2) (-1), 0 : iterate (*2) 1)
+
+positiveExponential :: Num a => (a, [a])
+positiveExponential = (1, iterate (*2) 2)
+
+nonNegativeExponential :: Num a => (a, [a])
+nonNegativeExponential = (0, iterate (*2) 1)
+
+negativeExponential :: Num a => ([a], a)
+negativeExponential = (iterate (*2) (-2), -1)
+
+nonPositiveExponential :: Num a => ([a], a)
+nonPositiveExponential = (iterate (*2) (-1), 0)
+
+
+
 -- * Splitters
 
 type Splitter a = a -> a -> Maybe a
@@ -142,7 +178,6 @@ searchM init0 split0 pred0 = do
 -- | Pick up the smallest @a@ that satisfies @pred a == b@ .
 smallest :: (Eq b) => b -> [Range b a] -> Maybe a
 smallest b rs = fst <$> lookup b rs
-
 
 -- | Pick up the largest @a@ that satisfies @pred a == b@ .
 largest :: (Eq b) => b -> [Range b a] -> Maybe a
