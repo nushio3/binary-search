@@ -273,6 +273,18 @@ smallest b rs = loVal <$> lookupRanges b rs
 largest :: (Eq b) => b -> [Range b a] -> Maybe a
 largest b rs = hiVal <$> lookupRanges b rs
 
--- | Pick up the smallest evidence for @a@ which satisfies @pred a@ .
+-- | Get the content of the evidence for the smallest @a@ which satisfies @pred a@ .
 evidenceForSmallest :: [Range (Evidence b1 b2) a] -> Maybe b2
 evidenceForSmallest rs = listToMaybe [e | Evidence e <- map loKey rs]
+
+-- | Get the content of the evidence for the largest @a@ which satisfies @pred a@ .
+evidenceForLargest :: [Range (Evidence b1 b2) a] -> Maybe b2
+evidenceForLargest rs = listToMaybe [e | Evidence e <- map hiKey rs]
+
+-- | Get the content of the counterEvidence for the smallest @a@ which does not satisfy @pred a@ .
+counterEvidenceForSmallest :: [Range (Evidence b1 b2) a] -> Maybe b1
+counterEvidenceForSmallest rs = listToMaybe [e | CounterEvidence e <- map loKey rs]
+
+-- | Get the content of the counterEvidence for the largest @a@ which does not satisfy @pred a@ .
+counterEvidenceForLargest :: [Range (Evidence b1 b2) a] -> Maybe b1
+counterEvidenceForLargest rs = listToMaybe [e | CounterEvidence e <- map hiKey rs]
