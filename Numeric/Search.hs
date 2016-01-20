@@ -14,13 +14,19 @@
 -- satisfies @pred left == val && pred right == val@, then also @pred
 -- x == val@ for all @x@ such that @left <= x <= right@ .
 --
--- __Example__
+-- __Example 1.__ Find the approximate square root of 3.
 --
--- >>> largest True $ search positiveExponential splitForever (\x -> x^2 < (3000000 :: Int))
+-- >>> largest True $ search positiveExponential divForever (\x -> x^2 < 3000000)
 -- Just 1732
--- >>> smallest False $ search positiveExponential splitForever (\x -> x^2 < (3000000 :: Int))
+-- >>> smallest False $ search positiveExponential divForever (\x -> x^2 < 3000000)
 -- Just 1733
-
+-- >>> largest True $ search positiveExponential divideForever (\x -> x^2 < (3::Double))
+-- Just 1.732
+--
+-- >>> import Data.SBV
+-- >>> let x ⊂ r = (2 .<= x &&& x .< r-2)
+-- >>> let x ∅ y = (abs (x-y) .>=4)
+-- >>> let contain3 r = \x y z -> bAnd [x ⊂ r, y ⊂ r, z ⊂ r]
 
 module Numeric.Search (
          -- * Evidence
@@ -29,7 +35,8 @@ module Numeric.Search (
          Range,
          SearchRange,
          -- * Splitters
-         splitForever, splitTill,
+         divForever, divTill,
+         divideForever, divideTill,
 
          -- * Search
          search, searchM,

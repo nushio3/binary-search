@@ -19,6 +19,7 @@ import           Prelude hiding (init, pred)
 -- True
 -- >>> Evidence "He loved her" == CounterEvidence "He loved her"
 -- False
+
 data Evidence a b = CounterEvidence a | Evidence b
                   deriving (Show, Read, Functor)
 
@@ -109,24 +110,39 @@ nonPositiveExponential = (iterate (*2) (-1), [0])
 type Splitter a = a -> a -> Maybe a
 
 -- | Perform split forever, until we cannot find a mid-value due to machine precision.
-splitForever :: Integral a => Splitter a
-splitForever lo hi = let mid = lo `div` 2 + hi `div` 2 in
+-- This splitter uses the `div` funtion.
+divForever :: Integral a => Splitter a
+divForever lo hi = let mid = lo `div` 2 + hi `div` 2 in
   if lo == mid || mid == hi then Nothing
   else Just mid
 
 -- | Perform splitting until @hi - lo <= eps@ .
-splitTill :: Integral a => a -> Splitter a
-splitTill eps lo hi
+divTill :: Integral a => a -> Splitter a
+divTill eps lo hi
   | hi - lo <= eps = Nothing
-  | otherwise      = splitForever lo hi
+  | otherwise      = divForever lo hi
+
+-- | Perform split forever, until we cannot find a mid-value due to machine precision.
+-- This one uses `(/)` operator.
+divideForever :: (Eq a,Fractional a) => Splitter a
+divideForever lo hi = let mid = lo / 2 + hi / 2 in
+  if lo == mid || mid == hi then Nothing
+  else Just mid
+
+-- | Perform splitting until @hi - lo <= eps@ .
+divideTill :: (Ord a, Fractional a) => a -> Splitter a
+divideTill eps lo hi
+  | hi - lo <= eps = Nothing
+  | otherwise      = divideForever lo hi
+
 
 -- * Searching
 
 -- | Mother of all search variations.
 --
--- 'searchM' carefully keeps track of the latest predicate found, so that it works well with the 'Evidence' class.
+-- 'searchM' keeps track of the predicates found, so that it works well with the 'Evidence' type.
 
-searchM :: forall a m b init . (Monad m, Eq b) =>
+searchM :: forall a m b . (Monad m, Eq b) =>
            SearchRange a -> Splitter a -> (a -> m b) -> m [Range b a]
 searchM init0 split0 pred0 = do
   ranges0 <- initializeSearchM init0 pred0
