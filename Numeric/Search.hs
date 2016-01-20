@@ -229,6 +229,7 @@ type Splitter a = a -> a -> Maybe a
 -- This splitter assumes that the arguments are Integral, and uses the `div` funtion.
 --
 -- Note that our dividing algorithm always find the mid value for any  @hi-lo >= 2@.
+--
 -- >>> prove $ \x y -> (y .>= x+2 &&& x+2 .> x) ==> let z = (x+1) `sDiv` 2 + y `sDiv` 2  in x .< z &&& z .< (y::SInt32)
 -- Q.E.D.
 
