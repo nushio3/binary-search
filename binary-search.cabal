@@ -31,8 +31,7 @@ Description:
             .
             __The Module Structure__
             .
-            *  "Numeric.Search.Combinator.Monadic" provides the most generic combinators. "Numeric.Search.Combinator.Pure" provides the pure version of them.
-            *  "Numeric.Search" exports both pure and monadic version.
+            *  "Numeric.Search" provides the generic search combinator, to search for pure and monadic predicates.
             *  "Numeric.Search.Bounded" ,  "Numeric.Search.Integer" ,  "Numeric.Search.Range" provides the various specialized searchers, which means less number of function arguments, and easier to use.
             .
             <<https://travis-ci.org/nushio3/binary-search.svg?branch=master>>
@@ -44,8 +43,6 @@ library
                     Numeric.Search.Bounded
                     Numeric.Search.Integer
                     Numeric.Search.Range
-                    Numeric.Search.Combinator.Monadic
-                    Numeric.Search.Combinator.Pure
 
   Ghc-Options:      -Wall
 
