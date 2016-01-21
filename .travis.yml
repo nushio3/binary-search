@@ -29,7 +29,6 @@ addons:
     sources:
     - hvr-ghc
     packages:
-    - ghc-7.10.3
     - libgmp-dev
 
 script:
