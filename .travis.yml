@@ -23,6 +23,8 @@ matrix:
     - env: RESOLVER=lts-4
     - env: RESOLVER=nightly
   allow_failures:
+    - env: RESOLVER=lts-1 # The output format of SBV has changed.
+    - env: RESOLVER=lts-2 # The change makes some doctests fail.
     - env: RESOLVER=nightly
 
 addons:
