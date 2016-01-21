@@ -3,6 +3,8 @@ sudo: false
 
 before_install:
   # enable stack
+  - ./scripts/set-resolver.sh $RESOLVER > stack-travis.yaml
+  - export STACK_YAML=stack-travis.yaml
   - mkdir -p ~/.local/bin
   - mkdir -p ~/.local/lib
   - export PATH=~/.local/bin:$PATH
@@ -11,6 +13,16 @@ before_install:
   - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
   - export PATH=/opt/ghc/7.10.3/bin:$PATH
   - stack install sbv
+
+
+matrix:
+  include:
+    - env: RESOLVER=lts-2
+    - env: RESOLVER=lts-3
+    - env: RESOLVER=lts-4
+    - env: RESOLVER=nightly
+  allow_failures:
+    - env: RESOLVER=nightly
 
 addons:
   apt:
