@@ -5,6 +5,7 @@ before_install:
   # enable stack
   - ./scripts/set-resolver.sh $RESOLVER > stack-travis.yaml
   - export STACK_YAML=stack-travis.yaml
+  - stack setup
   - mkdir -p ~/.local/bin
   - mkdir -p ~/.local/lib
   - export PATH=~/.local/bin:$PATH
