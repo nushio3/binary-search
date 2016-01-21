@@ -17,7 +17,6 @@ before_install:
 
 matrix:
   include:
-    - env: RESOLVER=lts-0
     - env: RESOLVER=lts-1
     - env: RESOLVER=lts-2
     - env: RESOLVER=lts-3
