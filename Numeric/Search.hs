@@ -24,6 +24,8 @@
 -- Just 1.7320508075688772
 -- >>> largest  True  $ search positiveExponential (divideTill 0.125) (\x -> x^2 < (3::Double))
 -- Just 1.625
+-- >>> smallest False $ search positiveExponential (divideTill 0.125) (\x -> x^2 < (3::Double))
+-- Just 1.75
 --
 -- Pay attention to use the appropriate exponential search combinator to set up the initial search range.
 -- For example, the following code works as expected:
