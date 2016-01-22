@@ -83,7 +83,7 @@
 
 module Numeric.Search where
 
-import           Control.Applicative((<$>))
+import           Control.Applicative
 import           Data.Functor.Identity
 import           Data.Maybe (fromJust, listToMaybe)
 import           Prelude hiding (init, pred)
@@ -272,7 +272,7 @@ search init0 split0 pred0 = runIdentity $ searchM init0 split0 (Identity . pred0
 --
 -- 'searchM' keeps track of the predicates found, so that it works well with the 'Evidence' type.
 
-searchM :: forall a m b . (Monad m, Eq b) =>
+searchM :: forall a m b . (Functor m, Monad m, Eq b) =>
            SearchRange a -> Splitter a -> (a -> m b) -> m [Range b a]
 searchM init0 split0 pred0 = do
   ranges0 <- initializeSearchM init0 pred0
